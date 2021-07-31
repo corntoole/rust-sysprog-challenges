@@ -52,7 +52,6 @@ pub fn get_args() -> MyResult<Config> {
 
 pub fn run(config: Config) -> MyResult<()> {
 	for filename in config.files {
-		let mut line_num = 1;
 		let file: MyResult<Box<dyn BufRead>> = match filename.as_str() {
 			"-" => Ok(Box::new(BufReader::new(io::stdin()))),
 			_ => match File::open(&filename) {
@@ -66,28 +65,23 @@ pub fn run(config: Config) -> MyResult<()> {
 			continue;
 		}
 
-		let mut _file = file.unwrap();
+		let file = file.unwrap();
+		let lines = io::BufReader::new(file).lines();
+		let mut last_num = 0;
 
-		let mut contents = String::new();
-		let mut num_bytes = _file.read_line(&mut contents)?;
-		loop {
-			if num_bytes == 0 {
-				break;
-			}
-			let is_blank = contents.trim().is_empty();
-			print!(
-				"{}{}",
-				if config.number_lines || config.number_nonblank_lines && !is_blank {
-					format!("{:width$}\t", line_num, width = 6)
+		for (line_num, line) in lines.enumerate() {
+			let line = line?;
+			if config.number_lines {
+				println!("{:6}\t{}", line_num + 1, line);
+			} else if config.number_nonblank_lines {
+				if line.len() > 0 {
+					last_num += 1;
+					println!("{:6}\t{}", last_num, line);
 				} else {
-					"".to_string()
-				},
-				contents
-			);
-			contents.clear();
-			num_bytes = _file.read_line(&mut contents)?;
-			if !config.number_nonblank_lines || !is_blank {
-				line_num += 1;
+					println!("");
+				}
+			} else {
+				println!("{}", line);
 			}
 		}
 	}
